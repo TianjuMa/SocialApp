@@ -7,6 +7,7 @@
 //
 
 #import "SCTabBarController.h"
+#import "SCHomeViewController.h"
 
 @interface SCTabBarController ()
 
@@ -31,7 +32,7 @@
 
 - (UIViewController *)homeViewController
 {
-    UIViewController *homeController = [[UIViewController alloc] init];
+    SCHomeViewController *homeController = [[SCHomeViewController alloc] init];
     homeController.view.backgroundColor = [UIColor whiteColor];
     homeController.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Home" image:[UIImage imageNamed:@"Events"] selectedImage:[UIImage imageNamed:@"Events_selected"]];
     homeController.tabBarItem.tag = 0;
