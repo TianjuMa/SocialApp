@@ -12,7 +12,7 @@
 
 static NSString * const SCHomeCellIdentifier = @"SCHomeCell";
 
-@interface SCHomeViewController ()
+@interface SCHomeViewController () <UITableViewDelegate, UITableViewDataSource>
 
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
 @property (strong, nonatomic) NSArray<SCPost *> *posts;
