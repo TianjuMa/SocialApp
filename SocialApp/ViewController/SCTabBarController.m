@@ -6,8 +6,10 @@
 //  Copyright © 2017 TianjuMa. All rights reserved.
 //
 
+
 #import "SCTabBarController.h"
 #import "SCHomeViewController.h"
+#import "SCExploreViewController.h"
 
 @interface SCTabBarController ()
 
@@ -19,7 +21,8 @@
     [super viewDidLoad];
     
     self.viewControllers = [self viewControllerArray];
-    self.selectedIndex = 1;
+    self.selectedIndex = 0;
+    [[self tabBar] setTintColor:[UIColor greenColor]];
 }
 
 - (NSArray <UIViewController *> *)viewControllerArray
@@ -36,16 +39,18 @@
     homeController.view.backgroundColor = [UIColor whiteColor];
     homeController.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Home" image:[UIImage imageNamed:@"Events"] selectedImage:[UIImage imageNamed:@"Events_selected"]];
     homeController.tabBarItem.tag = 0;
-    return homeController;
+    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:homeController];
+    return navigationController;
 }
-
 
 - (UIViewController *)exploreViewController
 {
-    UIViewController *exploreController = [[UIViewController alloc] init];
+    SCExploreViewController *exploreController = [SCExploreViewController new];
     exploreController.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"Explore" image:[UIImage imageNamed:@"Explore"] selectedImage:[UIImage imageNamed:@"Explore_selected"]];
     exploreController.tabBarItem.tag = 1;
-    return exploreController;
+    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:exploreController];
+    return navigationController;
 }
 
 @end
+
