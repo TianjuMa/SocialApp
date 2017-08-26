@@ -6,11 +6,15 @@
 //  Copyright © 2017 TianjuMa. All rights reserved.
 //
 
+
+
 #import "SCExploreViewController.h"
 #import <MapKit/MapKit.h>
 #import "SCLocationManager.h"
+#import "SCPostManager.h"
 #import "SCPost.h"
 #import "SCHomeViewController.h"
+#import "SCPostDetailViewController.h"
 
 static NSString * const SCAnnotationIdentifier = @"post.pin";
 
@@ -18,9 +22,7 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
 
 @property (weak, nonatomic) IBOutlet MKMapView *mapView;
 @property (weak, nonatomic) IBOutlet UIButton *reloadButton;
-
 @property (strong, nonatomic) NSArray <SCPost *>* posts;
-@property (assign, nonatomic) BOOL isUserHasPosts;
 @property (strong, nonatomic) CLLocation *center;
 @property (assign, nonatomic) CLLocationDistance radius;
 
@@ -40,7 +42,7 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
     self.title = NSLocalizedString(@"Explore", nil);
     [self.reloadButton setTitle:NSLocalizedString(@"Search This Area", nil) forState:UIControlStateNormal];
     [self.reloadButton addTarget:self action:@selector(reloadPosts) forControlEvents:UIControlEventTouchUpInside];
-    
+    [self.reloadButton setBackgroundColor:[UIColor colorWithRed:83.0 / 255.0 green:200.0 / 255.0 blue:118.0 / 255.0 alpha:1.0]];
     [self.reloadButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     self.reloadButton.layer.cornerRadius = 5;
     [self setupMap];
@@ -51,23 +53,17 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
     self.mapView.delegate = self;
     self.mapView.showsUserLocation = YES;
     CLLocationCoordinate2D coordinate = [[SCLocationManager sharedManager] getUserCurrentLocation].coordinate;
-    MKCoordinateSpan span = MKCoordinateSpanMake(3.5, 3.5);
+    MKCoordinateSpan span = MKCoordinateSpanMake(1.0, 1.0);
     MKCoordinateRegion region = MKCoordinateRegionMake(coordinate, span);
     [self.mapView setRegion:region];
 }
 
 - (void)updateMapWithPosts
 {
-    for (SCPost *post in self.posts) {
-        CLLocationCoordinate2D postLocation = post.location.coordinate;
-        CLLocationCoordinate2D userLocation = [[SCLocationManager sharedManager] getUserCurrentLocation].coordinate;
-        if ((postLocation.latitude == userLocation.latitude) &&
-            (postLocation.longitude == userLocation.longitude)) {
-            self.isUserHasPosts = YES;
-        }
-        MKPointAnnotation *anotation = [MKPointAnnotation new];
-        [anotation setCoordinate:post.location.coordinate];
-        [self.mapView addAnnotation:anotation];
+    for (SCPost *post in self.posts) {;
+        MKPointAnnotation *annotation = [MKPointAnnotation new];
+        [annotation setCoordinate:post.location.coordinate];
+        [self.mapView addAnnotation:annotation];
     }
 }
 
@@ -76,8 +72,8 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
     NSMutableArray<SCPost *> *posts = [NSMutableArray new];
     for (SCPost *post in self.posts) {
         CLLocationCoordinate2D postCoordinate = post.location.coordinate;
-        if ((fabs(postCoordinate.latitude - coordinate.latitude) <= 0.005) &&
-            (fabs(postCoordinate.longitude - coordinate.longitude) <= 0.005)) {
+        if ((fabs(postCoordinate.latitude - coordinate.latitude) <= 0.001) &&
+            (fabs(postCoordinate.longitude - coordinate.longitude) <= 0.001)) {
             [posts addObject:post];
         }
     }
@@ -85,16 +81,13 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
 }
 
 #pragma mark - action
-- (void)loadPosts
-{
-    CLLocation *location = [[SCLocationManager sharedManager] getUserCurrentLocation];
-    [self fetchPostsWithLocation:location];
-}
-
 - (void)reloadPosts
 {
+    // coordinate of map center
     CLLocationCoordinate2D centerCoordinate = [self.mapView centerCoordinate];
     self.center = [[CLLocation alloc] initWithLatitude:centerCoordinate.latitude longitude:centerCoordinate.longitude];
+    
+    // cooridinate of top left conner of map
     CLLocationCoordinate2D topCenterCoordinate = [self.mapView convertPoint:CGPointMake(0, 0) toCoordinateFromView:self.mapView];
     CLLocation *topCenter = [[CLLocation alloc] initWithLatitude:topCenterCoordinate.latitude longitude:topCenterCoordinate.longitude];
     self.radius = [self.center distanceFromLocation:topCenter];
@@ -104,18 +97,26 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
 
 - (void)fetchPostsWithLocation:(CLLocation *)location
 {
+    __weak typeof (self) weakSelf = self;
     
+    [SCPostManager getPostsWithLocation:location range:self.radius andCompletion:^(NSArray<SCPost *> *posts, NSError *error) {
+        weakSelf.posts = posts;
+        NSLog(@"posts count: %ld", (long)posts.count);
+        [weakSelf updateMapWithPosts];
+    }];
 }
 
 - (void)showPostsInMapWithLocation:(CLLocationCoordinate2D)coordinate
 {
     NSArray<SCPost *> *posts =[self postInLocation:coordinate];
     if (posts.count == 1) {
-        
+        SCPostDetailViewController *detailViewController = [[SCPostDetailViewController alloc] initWithNibName:NSStringFromClass([SCPostDetailViewController class]) bundle:nil];
+        [detailViewController loadDetailViewWithPost:posts.firstObject];
+        [self.navigationController pushViewController:detailViewController animated:YES];
     }
     else if (posts.count > 1) {
         SCHomeViewController *postsViewController = [[SCHomeViewController alloc] initWithNibName:NSStringFromClass([SCHomeViewController class]) bundle:nil];
-        
+        [postsViewController loadResultPageWithPosts:posts];
         [self.navigationController pushViewController:postsViewController animated:YES];
     }
 }
@@ -130,19 +131,14 @@ static NSString * const SCAnnotationIdentifier = @"post.pin";
 - (MKAnnotationView *)mapView:(MKMapView *)mapView viewForAnnotation:(id<MKAnnotation>)annotation
 {
     MKAnnotationView *annotationView = nil;
-    if ((annotation == mapView.userLocation) && !self.isUserHasPosts) {
-        [mapView.userLocation setTitle:NSLocalizedString(@"You are here", nil)];
+    if (annotation != mapView.userLocation) {
+        annotationView = [[MKAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:SCAnnotationIdentifier];
+        annotationView.image = [UIImage imageNamed:@"Shape"];
+        annotationView.canShowCallout = NO;
     }
-    else {
-        annotationView = [mapView dequeueReusableAnnotationViewWithIdentifier:SCAnnotationIdentifier];
-        if (!annotationView) {
-            annotationView = [[MKAnnotationView alloc] initWithAnnotation:annotation reuseIdentifier:SCAnnotationIdentifier];
-            annotationView.image = [UIImage imageNamed:@"Shape"];
-            annotationView.canShowCallout = NO;
-        }
-    }
+    
     return annotationView;
 }
 
-
 @end
+

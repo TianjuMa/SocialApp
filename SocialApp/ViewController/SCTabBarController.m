@@ -17,9 +17,9 @@
 
 @implementation SCTabBarController
 
-- (void)viewDidLoad {
+- (void)viewDidLoad
+{
     [super viewDidLoad];
-    
     self.viewControllers = [self viewControllerArray];
     self.selectedIndex = 0;
     [[self tabBar] setTintColor:[UIColor greenColor]];
